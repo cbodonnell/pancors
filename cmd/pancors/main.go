@@ -1,10 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 
+	"github.com/gorilla/mux"
 	"github.com/michaljanocko/pancors"
 )
 
@@ -24,15 +26,31 @@ func getAllowCredentials() string {
 
 func getListenPort() string {
 	if port, ok := os.LookupEnv("PORT"); ok {
-		return ":" + port
+		return port
 	}
-	return ":8080"
+	return "8080"
+}
+
+func getAuthEndpoint() string {
+	if endpoint, ok := os.LookupEnv("AUTH_ENDPOINT"); ok {
+		return endpoint
+	}
+	return ""
 }
 
 func main() {
-	http.HandleFunc("/", pancors.HandleProxyWith(getAllowOrigin(), getAllowCredentials()))
+	r := mux.NewRouter()
+
+	r.HandleFunc("/", pancors.HandleProxyWith(getAllowOrigin(), getAllowCredentials()))
+
+	authEndpoint := getAuthEndpoint()
+	if authEndpoint != "" {
+		log.Printf("Authenticating with %s", authEndpoint)
+		auth := NewAuthMiddleware(authEndpoint)
+		r.Use(auth)
+	}
 
 	port := getListenPort()
 	log.Printf("PanCORS started listening on %s\n", port)
-	log.Fatal(http.ListenAndServe(port, nil))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), r))
 }
