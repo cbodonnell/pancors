@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+
+	"github.com/AlchemyTelcoSolutions/safehttp"
 )
 
 type corsTransport struct {
@@ -19,8 +21,11 @@ func (t corsTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 		r.Header.Add("Referer", t.referer)
 	}
 
+	client := safehttp.NewClient(safehttp.Options{})
+
 	// Do the actual request
-	res, err := http.DefaultTransport.RoundTrip(r)
+	// res, err := http.DefaultTransport.RoundTrip(r)
+	res, err := client.Transport.RoundTrip(r)
 	if err != nil {
 		return nil, err
 	}
