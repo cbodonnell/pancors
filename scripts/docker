@@ -1,2 +1,2 @@
 #!/bin/sh
-sudo ENV=$ENV docker run -d --env-file="$ENV.env" --network auth_net --name pancors --restart unless-stopped cheebz/pancors
+docker run -d --env-file="$ENV.env" --network auth_net -p 127.0.0.1:8086:8080 --name pancors --restart unless-stopped cheebz/pancors
