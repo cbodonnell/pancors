@@ -1,0 +1,2 @@
+#!/bin/sh
+sudo ENV=$ENV docker run -d --env-file="$ENV.env" --network auth_net --name pancors --restart unless-stopped cheebz/pancors
