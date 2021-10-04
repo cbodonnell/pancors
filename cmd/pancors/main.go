@@ -43,13 +43,14 @@ func main() {
 
 	r.HandleFunc("/", pancors.HandleProxyWith(getAllowOrigin(), getAllowCredentials()))
 
-	// TODO: Prevent proxied requests from hitting local services
 	authEndpoint := getAuthEndpoint()
 	if authEndpoint != "" {
 		log.Printf("Authenticating with %s", authEndpoint)
 		auth := NewAuthMiddleware(authEndpoint)
 		r.Use(auth)
 	}
+
+	// TODO: CORS in development to allow unauthorized testing
 
 	port := getListenPort()
 	log.Printf("PanCORS started listening on %s\n", port)
