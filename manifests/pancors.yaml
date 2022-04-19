@@ -1,3 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pancors-config
+data:
+  auth_endpoint: http://go-auth-service/auth/
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -23,6 +30,12 @@ spec:
             cpu: "500m"
         ports:
         - containerPort: 8080
+        env:
+        - name: AUTH_ENDPOINT
+          valueFrom: 
+            configMapKeyRef:
+              name: pancors-config
+              key: auth_endpoint
 ---
 apiVersion: v1
 kind: Service
