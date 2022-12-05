@@ -33,6 +33,7 @@ func Refresh(w http.ResponseWriter, r *http.Request, endpoint string) error {
 	if err != nil {
 		return err
 	}
+	defer authResp.Body.Close()
 	log.Printf("auth response: %d", authResp.StatusCode)
 	for _, cookie := range authResp.Cookies() {
 		http.SetCookie(w, cookie)
