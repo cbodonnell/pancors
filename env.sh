@@ -1,8 +1,8 @@
 #!/bin/bash
 
-if [ -z "$1" ]; then
+if [ "$1" == "help" ]; then
     echo "Usage: $0 <env_name>"
-    exit 1
+    exit 0
 fi
 
 ENV=$1
