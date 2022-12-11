@@ -4,3 +4,5 @@ build:
 serve:
 	./bin/pancors
 
+container:
+	docker build -t cheebz/pancors .
