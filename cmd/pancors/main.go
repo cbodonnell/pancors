@@ -8,6 +8,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/michaljanocko/pancors"
+	"github.com/michaljanocko/pancors/pkg/middleware"
 )
 
 func getAllowOrigin() string {
@@ -46,7 +47,7 @@ func main() {
 	authEndpoint := getAuthEndpoint()
 	if authEndpoint != "" {
 		log.Printf("Authenticating with %s", authEndpoint)
-		auth := NewAuthMiddleware(authEndpoint)
+		auth := middleware.NewAuthMiddleware(authEndpoint)
 		r.Use(auth)
 	}
 

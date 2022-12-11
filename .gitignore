@@ -2,6 +2,7 @@
 *.env
 
 build/
+bin/
 
 # Binaries for programs and plugins
 *.exe

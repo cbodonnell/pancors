@@ -1,21 +1,45 @@
 package pancors
 
 import (
+	"bufio"
+	"bytes"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"time"
 
 	"github.com/AlchemyTelcoSolutions/safehttp"
+	"github.com/jellydator/ttlcache/v3"
 )
 
 type corsTransport struct {
 	referer     string
 	origin      string
 	credentials string
+	cache       *ttlcache.Cache[string, string]
+}
+
+func NewCorsTransport(referer string, origin string, credentials string, cache *ttlcache.Cache[string, string]) corsTransport {
+	return corsTransport{
+		referer,
+		origin,
+		credentials,
+		cache,
+	}
 }
 
 func (t corsTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	item := t.cache.Get(r.URL.String())
+	if item != nil {
+		reader := bufio.NewReader(bytes.NewReader([]byte(item.Value())))
+		response, err := http.ReadResponse(reader, r)
+		if err != nil {
+			return nil, err
+		}
+		return response, nil
+	}
+
 	// Put in the Referer if specified
 	if t.referer != "" {
 		r.Header.Add("Referer", t.referer)
@@ -24,7 +48,6 @@ func (t corsTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	client := safehttp.NewClient(safehttp.Options{})
 
 	// Do the actual request
-	// res, err := http.DefaultTransport.RoundTrip(r)
 	res, err := client.Transport.RoundTrip(r)
 	if err != nil {
 		return nil, err
@@ -33,10 +56,27 @@ func (t corsTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	res.Header.Set("Access-Control-Allow-Origin", t.origin)
 	res.Header.Set("Access-Control-Allow-Credentials", t.credentials)
 
-	return res, nil
+	buffer := bytes.NewBuffer([]byte{})
+	writer := bufio.NewWriter(buffer)
+	err = res.Write(writer)
+	if err != nil {
+		return nil, err
+	}
+	err = writer.Flush()
+	if err != nil {
+		return nil, err
+	}
+	t.cache.Set(r.URL.String(), buffer.String(), ttlcache.DefaultTTL)
+
+	reader := bufio.NewReader(bytes.NewReader(buffer.Bytes()))
+	response, err := http.ReadResponse(reader, r)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
 }
 
-func handleProxy(w http.ResponseWriter, r *http.Request, origin string, credentials string) {
+func handleProxy(w http.ResponseWriter, r *http.Request, origin string, credentials string, cache *ttlcache.Cache[string, string]) {
 	// Check for the User-Agent header
 	if r.Header.Get("User-Agent") == "" {
 		http.Error(w, "Missing User-Agent header", http.StatusBadRequest)
@@ -69,7 +109,7 @@ func handleProxy(w http.ResponseWriter, r *http.Request, origin string, credenti
 			r.URL = urlParsed
 			r.Host = urlParsed.Host
 		},
-		Transport: corsTransport{referer, origin, credentials},
+		Transport: NewCorsTransport(referer, origin, credentials, cache),
 	}
 
 	// Execute the request
@@ -79,7 +119,13 @@ func handleProxy(w http.ResponseWriter, r *http.Request, origin string, credenti
 // HandleProxy is a handler which passes requests to the host and returns their
 // responses with CORS headers
 func HandleProxy(w http.ResponseWriter, r *http.Request) {
-	handleProxy(w, r, "*", "true")
+	cache := ttlcache.New(
+		ttlcache.WithTTL[string, string](2 * time.Minute),
+	)
+
+	go cache.Start() // starts automatic expired item deletion
+
+	handleProxy(w, r, "*", "true", cache)
 }
 
 // HandleProxyFromHosts is a handler which passes requests only from specified to the host
@@ -87,7 +133,14 @@ func HandleProxyWith(origin string, credentials string) func(http.ResponseWriter
 	if !(credentials == "true" || credentials == "false") {
 		log.Panicln("Access-Control-Allow-Credentials can only be 'true' or 'false'")
 	}
+
+	cache := ttlcache.New(
+		ttlcache.WithTTL[string, string](2 * time.Minute),
+	)
+
+	go cache.Start() // starts automatic expired item deletion
+
 	return func(w http.ResponseWriter, r *http.Request) {
-		handleProxy(w, r, origin, credentials)
+		handleProxy(w, r, origin, credentials, cache)
 	}
 }
