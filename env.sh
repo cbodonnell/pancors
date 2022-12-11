@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ "$1" == "help" ]; then
+if [ "$1" = "help" ]; then
     echo "Usage: $0 <env_name>"
     exit 0
 fi
